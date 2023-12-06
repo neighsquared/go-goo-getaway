@@ -26,7 +26,7 @@
 #include "raylib.h"
 #include "screens.h"
 
-const int MAX_ENVIRONMENT_ELEMENTS = 50;
+const int MAX_ENVIRONMENT_ELEMENTS = 3;
 const int gravity = 800.0f;
 const int playerJumpSpeed = 650.0f;
 const int playerRunSpeed = 500.0f;
@@ -124,75 +124,77 @@ void InitGameplayScreen(void) {
 
 // Gameplay Screen Update logic
 void UpdateGameplayScreen(void) {
-    // Move left
-    if ((IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A)) && player.position.x - playerRunSpeed * GetFrameTime() > 0)
-        player.position.x -= playerRunSpeed * GetFrameTime();
+    if (!showCongratulations) {
+        // Move left
+        if ((IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A)) && player.position.x - playerRunSpeed * GetFrameTime() > 0)
+            player.position.x -= playerRunSpeed * GetFrameTime();
 
-    // Move right
-    if ((IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) && player.position.x + playerRunSpeed * GetFrameTime() < GetScreenWidth())
-        player.position.x += playerRunSpeed * GetFrameTime();
+        // Move right
+        if ((IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) && player.position.x + playerRunSpeed * GetFrameTime() < GetScreenWidth())
+            player.position.x += playerRunSpeed * GetFrameTime();
 
-    // Check if the player is standing on a platform
-    int standingOnPlatform = 0;
-    for (int i = 0; i < MAX_ENVIRONMENT_ELEMENTS; i++) {
-        EnvElement* element = &envElements[i];
-        Vector2* p = &(player.position);
-        if (element->blocking && element->rect.x <= p->x && element->rect.x + element->rect.width >= p->x &&
-            element->rect.y == p->y + player.speed * GetFrameTime()) {
-            standingOnPlatform = 1;
-            break;
-        }
-    }
-
-    // If standing on a platform, make the player continuously jump
-    if (standingOnPlatform) {
-        player.speed = -playerJumpSpeed;
-        player.canJump = false;
-    }
-
-    // Iterate through every platform and check for collision
-    int hitObstacle = 0;
-    for (int i = 0; i < MAX_ENVIRONMENT_ELEMENTS; i++) {
-        EnvElement* element = &envElements[i];
-        Vector2* p = &(player.position);
-        // Collision detected
-        if (element->blocking && element->rect.x <= p->x && element->rect.x + element->rect.width >= p->x &&
-            element->rect.y >= p->y && element->rect.y <= p->y + player.speed * GetFrameTime()) {
-            hitObstacle = 1;
-            player.speed = 0.0f;
-            p->y = element->rect.y;
-        }
-    }
-
-    // If there's no platform under the player, fall
-    if (!hitObstacle) {
-        player.position.y += player.speed * GetFrameTime();
-        player.speed += gravity * GetFrameTime();
-        player.canJump = false;
-    }
-    // If on a platform, jump!
-    else {
-        player.canJump = true;
-        PlaySound(fxCoin); // Play sound
-    }
-
-    // Iterate through all the platforms for moving platforms
-    for (int i = 0; i < MAX_ENVIRONMENT_ELEMENTS; i++) {
-        EnvElement* element = &envElements[i];
-        if (element->movingPlatform) {
-            // Update movement speed
-            element->rect.x += element->moveSpeed * GetFrameTime();
-            // If it touches the left of right side of the screen, change directions
-            if (element->rect.x <= 0 || element->rect.x + element->rect.width >= GetScreenWidth()) {
-                element->moveSpeed = -element->moveSpeed;
+        // Check if the player is standing on a platform
+        int standingOnPlatform = 0;
+        for (int i = 0; i < MAX_ENVIRONMENT_ELEMENTS; i++) {
+            EnvElement* element = &envElements[i];
+            Vector2* p = &(player.position);
+            if (element->blocking && element->rect.x <= p->x && element->rect.x + element->rect.width >= p->x &&
+                element->rect.y == p->y + player.speed * GetFrameTime()) {
+                standingOnPlatform = 1;
+                break;
             }
         }
-    }
-    
-    // Set camera target to player position only vertically
-    camera.target.y = player.position.y;
 
-    framesCounter++;
+        // If standing on a platform, make the player continuously jump
+        if (standingOnPlatform) {
+            player.speed = -playerJumpSpeed;
+            player.canJump = false;
+        }
+
+        // Iterate through every platform and check for collision
+        int hitObstacle = 0;
+        for (int i = 0; i < MAX_ENVIRONMENT_ELEMENTS; i++) {
+            EnvElement* element = &envElements[i];
+            Vector2* p = &(player.position);
+            // Collision detected
+            if (element->blocking && element->rect.x <= p->x && element->rect.x + element->rect.width >= p->x &&
+                element->rect.y >= p->y && element->rect.y <= p->y + player.speed * GetFrameTime()) {
+                hitObstacle = 1;
+                player.speed = 0.0f;
+                p->y = element->rect.y;
+            }
+        }
+
+        // If there's no platform under the player, fall
+        if (!hitObstacle) {
+            player.position.y += player.speed * GetFrameTime();
+            player.speed += gravity * GetFrameTime();
+            player.canJump = false;
+        }
+        // If on a platform, jump!
+        else {
+            player.canJump = true;
+            PlaySound(fxCoin); // Play sound
+        }
+
+        // Iterate through all the platforms for moving platforms
+        for (int i = 0; i < MAX_ENVIRONMENT_ELEMENTS; i++) {
+            EnvElement* element = &envElements[i];
+            if (element->movingPlatform) {
+                // Update movement speed
+                element->rect.x += element->moveSpeed * GetFrameTime();
+                // If it touches the left of right side of the screen, change directions
+                if (element->rect.x <= 0 || element->rect.x + element->rect.width >= GetScreenWidth()) {
+                    element->moveSpeed = -element->moveSpeed;
+                }
+            }
+        }
+        
+        // Set camera target to player position only vertically
+        camera.target.y = player.position.y;
+
+        framesCounter++;
+    }
 }
 
 // Gameplay Screen Draw logic
@@ -209,13 +211,6 @@ void DrawGameplayScreen(void)
 
     // Draw the player's sprite
     DrawTexture(slime, player.position.x - slime.width / 2, player.position.y - slime.height / 2, WHITE);
-
-    EndMode2D(); // End the 2D drawing mode
-
-    // Draw timer at the top right corner
-    int timerValue = framesCounter / 60; // 60 FPS
-    DrawText(TextFormat("Time: %02d:%02d", timerValue / 60, timerValue % 60),
-            GetScreenWidth() - MeasureText("Time: 00:00", 20) - 10, 10, 20, BLACK);
 
     EndMode2D(); // End the 2D drawing mode
 
